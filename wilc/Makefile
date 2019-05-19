@@ -15,3 +15,14 @@ obj-$(CONFIG_WILC_SPI) += wilc-spi.o
 wilc-spi-objs += $(wilc-objs)
 wilc-spi-objs += wilc_spi.o 
 
+all:
+	$(MAKE) -C $(KERNEL_SRC) M=$(CURDIR) modules
+
+modules_install:
+	$(MAKE) -C $(KERNEL_SRC) M=$(CURDIR) modules_install
+
+clean:
+	rm -f *.o *~ core .depend .*.cmd *.ko *.mod.c
+	rm -f Module.markers Module.symvers modules.order
+	rm -rf .tmp_versions Modules.symversa
+
