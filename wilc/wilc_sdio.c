@@ -448,12 +448,21 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		}
 	} else {
 		struct sdio_cmd53 cmd;
+		u32 * pData = kmalloc(sizeof(*pData), GFP_KERNEL);
+		if (!pData) {
+			dev_err(&func->dev, "kmalloc fail\n");
+			goto fail;
+		}
+
+		*pData = data;
 
 		/**
 		 *      set the AHB address
 		 **/
-		if (!sdio_set_func0_csa_address(wilc, addr))
+		if (!sdio_set_func0_csa_address(wilc, addr)) {
+			kfree(pData);
 			goto fail;
+		}
 
 		cmd.read_write = 1;
 		cmd.function = 0;
@@ -461,15 +470,19 @@ static int sdio_write_reg(struct wilc *wilc, u32 addr, u32 data)
 		cmd.block_mode = 0;
 		cmd.increment = 1;
 		cmd.count = 4;
-		cmd.buffer = (u8 *)&data;
+		cmd.buffer = (u8 *)pData;
 		cmd.block_size = sdio_priv->block_size;
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53, write reg (%08x)...\n", addr);
+			kfree(pData);
 			goto fail;
 		}
+
+		kfree(pData);
 	}
+
 
 	return 1;
 
@@ -485,7 +498,6 @@ static int sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	u32 block_size = sdio_priv->block_size;
 	struct sdio_cmd53 cmd;
 	int nblk, nleft, ret;
-
 	cmd.read_write = 1;
 	if (addr > 0) {
 		/**
@@ -560,11 +572,9 @@ static int sdio_write(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 			goto fail;
 		}
 	}
-
 	return 1;
 
 fail:
-
 	return 0;
 }
 
@@ -590,25 +600,35 @@ static int sdio_read_reg(struct wilc *wilc, u32 addr, u32 *data)
 		*data = cmd.data;
 	} else {
 		struct sdio_cmd53 cmd;
+		u32 * pData = kmalloc(sizeof(*pData), GFP_KERNEL);
+		if (!pData) {
+			dev_err(&func->dev, "kmalloc fail\n");
+			return 0;
+		}
 
-		if (!sdio_set_func0_csa_address(wilc, addr))
+		if (!sdio_set_func0_csa_address(wilc, addr)) {
+			kfree(pData);
 			goto fail;
-
+		}
+		
 		cmd.read_write = 0;
 		cmd.function = 0;
 		cmd.address = 0x10f;
 		cmd.block_mode = 0;
 		cmd.increment = 1;
 		cmd.count = 4;
-		cmd.buffer = (u8 *)data;
+		cmd.buffer = (u8 *)pData;
 
 		cmd.block_size = sdio_priv->block_size;
 		ret = wilc_sdio_cmd53(wilc, &cmd);
 		if (ret) {
 			dev_err(&func->dev,
 				"Failed cmd53, read reg (%08x)...\n", addr);
+			kfree(pData);
 			goto fail;
 		}
+		*data = *pData;
+		kfree(pData);
 	}
 
 	le32_to_cpus(data);
@@ -706,7 +726,6 @@ static int sdio_read(struct wilc *wilc, u32 addr, u8 *buf, u32 size)
 	return 1;
 
 fail:
-
 	return 0;
 }
 

@@ -4,7 +4,6 @@
  * All rights reserved.
  */
 
-#if defined(WILC_DEBUGFS)
 #include <linux/module.h>
 #include <linux/debugfs.h>
 
@@ -84,9 +83,9 @@ static struct wilc_debugfs_info_t debugfs_info[] = {
 
 int wilc_debugfs_init(void)
 {
+#if defined(WILC_DEBUGFS)
 	int i;
 	struct wilc_debugfs_info_t *info;
-
 	wilc_dir = debugfs_create_dir("wilc", NULL);
 	if (wilc_dir == NULL) {
 		pr_err("Error creating debugfs\n");
@@ -101,11 +100,16 @@ int wilc_debugfs_init(void)
 				    &info->fops);
 	}
 	return 0;
+#else
+	return 0;
+#endif
 }
 
 void wilc_debugfs_remove(void)
 {
+#if defined(WILC_DEBUGFS)
 	debugfs_remove_recursive(wilc_dir);
-}
-
+#else
+	return ;
 #endif
+}
