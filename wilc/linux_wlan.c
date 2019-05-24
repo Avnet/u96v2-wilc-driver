@@ -1799,7 +1799,7 @@ static void wilc_wlan_power(struct wilc *wilc, int power)
 
 	pr_info("wifi_pm : %d\n", power);
 
-	pr_info("WILC DRIVER SETUP TO NOT TOUCH CHIP_EN and RESETN!\n");
+	// pr_info("WILC DRIVER SETUP TO NOT TOUCH CHIP_EN and RESETN!\n");
 
 return ;
 
