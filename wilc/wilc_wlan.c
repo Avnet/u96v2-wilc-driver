@@ -875,17 +875,20 @@ void chip_wakeup_wilc3000(struct wilc *wilc, int source)
 	do {
 		hif_func->hif_write_reg(wilc, wakeup_reg, wakeup_reg_val |
 							  wakeup_bit);
+		/* Wait for the chip to stabilize*/
+		usleep_range(1000, 1100);
+
 		/* Check the clock status */
 		hif_func->hif_read_reg(wilc, clk_status_reg,
 				       &clk_status_reg_val);
 
 		/*
 		 * in case of clocks off, wait 1ms, and check it again.
-		 * if still off, wait for another 1ms, for a total wait of 3ms.
+		 * if still off, wait for another 1ms, for a total wait of 6ms.
 		 * If still off, redo the wake up sequence
 		 */
 		while (((clk_status_reg_val & clk_status_bit) == 0) &&
-		       (((++trials) % 3) == 0)) {
+		       (((++trials) % 6) != 0)) {
 			/* Wait for the chip to stabilize*/
 			usleep_range(1000, 1100);
 
@@ -960,22 +963,31 @@ int wilc_wlan_handle_txq(struct net_device *dev, u32 *txq_count)
 	int ret = 0;
 	int counter;
 	int timeout;
-	u32 vmm_table[WILC_VMM_TBL_SIZE];
+	u32 * vmm_table; // [WILC_VMM_TBL_SIZE];
 	u8 ac_pkt_num_to_chip[NQUEUES] = {0, 0, 0, 0};
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wilc = vif->wilc;
 	const struct wilc_hif_func *func;
 
+	vmm_table = kmalloc(sizeof(*vmm_table) * WILC_VMM_TBL_SIZE, GFP_KERNEL);
+	if (!vmm_table) {
+		PRINT_ER(vif->ndev, "kmalloc fail vmm_table\n");
+		return -1;
+	}
+
 	txb = wilc->tx_buffer;
 	if (!wilc->txq_entries) {
 		*txq_count = 0;
+		kfree(vmm_table);
 		return 0;
 	}
 
 	if (wilc->quit)
 		goto out;
-	if (ac_balance(ac_fw_count, ac_desired_ratio))
+	if (ac_balance(ac_fw_count, ac_desired_ratio)) {
+		kfree(vmm_table);
 		return -1;
+	}
 
 	mutex_lock(&wilc->txq_add_to_head_cs);
 	wilc_wlan_txq_filter_dup_tcp_ack(dev);
@@ -1275,6 +1287,7 @@ out:
 	*txq_count = wilc->txq_entries;
 	if (ret == 1)
 		cfg_packet_timeout = 0;
+	kfree(vmm_table);
 	return ret;
 }
 
@@ -1474,7 +1487,7 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 	u32 addr, size, size2, blksz;
 	u8 *dma_buffer;
 	int ret = 0;
-	u32 reg = 0;
+	u32 reg;
 	struct wilc_vif *vif = wilc->vif[0];
 
 	blksz = BIT(12);
@@ -1495,6 +1508,7 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 	wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
 	reg &= ~(1ul << 10);
 	ret = wilc->hif_func->hif_write_reg(wilc, WILC_GLB_RESET_0, reg);
+	msleep(200);
 	wilc->hif_func->hif_read_reg(wilc, WILC_GLB_RESET_0, &reg);
 	if ((reg & (1ul << 10)) != 0)
 		PRINT_ER(vif->ndev, "Failed to reset Wifi CPU\n");
@@ -1536,15 +1550,16 @@ int wilc_wlan_firmware_download(struct wilc *wilc, const u8 *buffer,
 fail:
 
 	kfree(dma_buffer);
-
 	return (ret < 0) ? ret : 0;
 }
 
 int wilc_wlan_start(struct wilc *wilc)
 {
-	u32 reg = 0;
+	u32 reg;
 	int ret;
 	struct wilc_vif *vif = wilc->vif[0];
+
+	reg = 0;
 
 	if (wilc->io_type == HIF_SDIO ||
 	    wilc->io_type == HIF_SDIO_GPIO_IRQ)
@@ -1594,7 +1609,6 @@ int wilc_wlan_start(struct wilc *wilc)
 	else
 		wilc->initialized = 0;
 	release_bus(wilc, RELEASE_ALLOW_SLEEP, DEV_WIFI);
-
 	return (ret < 0) ? ret : 0;
 }
 
@@ -1959,7 +1973,7 @@ u32 wilc_get_chipid(struct wilc *wilc, bool update)
 {
 	static u32 chipid;
 	int ret;
-	u32 tempchipid = 0;
+	u32 tempchipid;
 
 	if (chipid == 0 || update) {
 		ret = wilc->hif_func->hif_read_reg(wilc, 0x3b0000,
@@ -1981,7 +1995,6 @@ u32 wilc_get_chipid(struct wilc *wilc, bool update)
 		}
 		chipid = tempchipid;
 	}
-
 	return chipid;
 }
 

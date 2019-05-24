@@ -41,7 +41,7 @@ config WILC_SPI
 
 config WILC_HW_OOB_INTR
 	bool "WILC out of band interrupt"
-	depends on WILC_SDIO
+	depends on WILC1000_SDIO
 	default n
 	help
 	  This option enables out-of-band interrupt support for the WILC1000 &

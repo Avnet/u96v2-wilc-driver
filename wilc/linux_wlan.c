@@ -135,7 +135,7 @@ void wilc_frmw_to_linux(struct wilc_vif *vif, u8 *buff, u32 size,
 static int wilc_mac_open(struct net_device *ndev);
 static int wilc_mac_close(struct net_device *ndev);
 
-int debug_running;
+int debug_running = false;  // Yes it's an int but they R using bools below
 int recovery_on;
 int wait_for_recovery;
 static int debug_thread(void *arg)
@@ -392,6 +392,10 @@ static int init_irq(struct net_device *dev)
 	int ret = 0;
 	struct wilc_vif *vif = netdev_priv(dev);
 	struct wilc *wl = vif->wilc;
+
+
+// This is no longer supported, the firmware for the WILC3000 does not yank the IRQN line back to the gpio
+return 0;
 
 #if KERNEL_VERSION(3, 13, 0) < LINUX_VERSION_CODE
 
@@ -1088,6 +1092,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 	}
 	wait_for_completion(&wilc->txq_thread_started);
 
+#if defined(WILC_DEBUGFS)
 	if (!debug_running) {
 		PRINT_INFO(vif->ndev, INIT_DBG,
 			   "Creating kthread for Debugging\n");
@@ -1102,6 +1107,7 @@ static int wlan_initialize_threads(struct net_device *dev)
 		debug_running = true;
 		wait_for_completion(&wilc->debug_thread_started);
 	}
+#endif
 
 	return 0;
 }
@@ -1691,7 +1697,6 @@ int wilc_netdev_init(struct wilc **wilc, struct device *dev, int io_type,
 	ret = cfg_init(wl);
 	if (ret)
 		goto free_wl;
-
 	wilc_debugfs_init();
 	*wilc = wl;
 	wl->io_type = io_type;
@@ -1794,6 +1799,12 @@ static void wilc_wlan_power(struct wilc *wilc, int power)
 
 	pr_info("wifi_pm : %d\n", power);
 
+	// pr_info("WILC DRIVER SETUP TO NOT TOUCH CHIP_EN and RESETN!\n");
+
+return ;
+
+	// To late in the game to use these, this will undo the SDIO setup that the Xilinx driver has already done
+	// plus these were moved out of the wilc device tree child node so that pwrseq_simple can properly use them
 	gpio_reset = gpiod_get(wilc->dt_dev, "reset", GPIOD_ASIS);
 	if (IS_ERR(gpio_reset)) {
 		dev_warn(wilc->dev, "failed to get Reset GPIO, try default\r\n");
@@ -1821,9 +1832,11 @@ static void wilc_wlan_power(struct wilc *wilc, int power)
 	}
 
 	if (power) {
-		gpiod_direction_output(gpio_chip_en, 1);
-		mdelay(5);
+		gpiod_direction_output(gpio_chip_en, 0);
+		mdelay(9);
 		gpiod_direction_output(gpio_reset, 1);
+		gpiod_direction_output(gpio_chip_en, 1);
+		mdelay(9);
 	} else {
 		gpiod_direction_output(gpio_reset, 0);
 		gpiod_direction_output(gpio_chip_en, 0);
