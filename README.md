@@ -1,4 +1,4 @@
-# NOTE: This source was originally forked from https://github.com/linux4wilc/driver/tree/wilc_linux_15_2/wilc
+# NOTE: This source was originally forked from https://github.com/linux4wilc/driver/tree/wilc_linux_15_2
 # From tag: "wilc_linux_15_2".  It has been modified to be compatible with the Ultra96 V2 board and PetaLinux 2018.x.
 # This source will NOT work on any other platform and requires other device tree and kernel patches to work with U96 V2.
 # Some features of the original driver no longer work on this platform.
