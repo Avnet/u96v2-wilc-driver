@@ -1782,7 +1782,9 @@ free_ndev:
 			}
 		}
 	}
+	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	unregister_inetaddr_notifier(&g_dev_notifier);
+	#endif
 	destroy_workqueue(wl->hif_workqueue);
 free_cfg:
 	cfg_deinit(wl);

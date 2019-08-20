@@ -2802,7 +2802,9 @@ static void handle_power_management(struct work_struct *work)
 		PRINT_ER(vif->ndev, "Failed to send power management\n");
 		goto out;
 	}
+	#ifdef DISABLE_PWRSAVE_AND_SCAN_DURING_IP
 	store_power_save_current_state(vif, power_mode);
+	#endif
 out:
 	kfree(msg);
 }
